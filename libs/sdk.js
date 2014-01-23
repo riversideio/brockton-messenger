@@ -1,8 +1,9 @@
-var request = require('request');
+var request = require('request'),
+    qs = require('querystring');
 // slightly modified version
 // of the sdk that is tuned for node
 function ioSdk( api ) {
-
+    // storing user on server is a no go
     var user,
         processing,
         delimiterStart = '{{',
@@ -32,34 +33,31 @@ function ioSdk( api ) {
             data.session_token = user.session_token;
         }
         // replace with request
-        //request( api + endpoint );
-        return /*$.ajax({
-            // abstract url to allow for better dev
-            url : 'https://victoria-club.herokuapp.com/api/v0/' + endpoint,
-            data : data,
-            type : options.method || "post",
-            success : function ( res ) {
-                if ( callback ) {
-                    if ( res.success ) {
-                        callback( null, res );
-                        if ( 
-                            /\/sessions.json$/g.test( this.url ) ||
-                            ( 
-                                /\/users.json$/g.test( this.url ) && 
-                                this.type === "POST" 
-                            )
-                        ){
-                            user = res.user;
-                        }
-                    }else{
-                        callback( res );
-                    }
+        var opts = {
+            url : api + endpoint,
+            body : qs.stringify(data),
+            method : options.method
+        };
+        return request( opts, function ( err, res, body ) {
+            if ( err ) return callback( err );
+            if ( res.statusCode === 200 ) {
+                var data,
+                    returned;
+
+                try {
+                    data = JSON.parse( body );
+                } catch ( e ) {
+                    returned = true;
+                    callback( e );
                 }
-            },
-            error : function ( err ) {
-                if ( callback ) callback ( err );
+
+                if ( returned ) return;
+                return callback ( null, data );
             }
-        })*/
+            // if it gets here its probably not that good
+            // i dont think our api returns anything else time being 
+            callback( new Error('bad status'), body );
+        } );
     }
 
     function _setCall ( endpoint, options ) {
@@ -131,4 +129,6 @@ function ioSdk( api ) {
 
     }
 
-}
+};
+
+module.exports = ioSdk;

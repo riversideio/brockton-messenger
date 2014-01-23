@@ -7,7 +7,7 @@ var connect = require('connect'),
 	router = require('./libs/router')( require('./libs/routes') ),
 	Serial = require('./libs/serial'),
 	port = process.env.PORT || 3000,
-	io, // take sdk and make it use request.
+	io = require('./libs/sdk')(process.env.API),
 	serial = new Serial( process.env.SERIALPORT, {
 			auth : process.env.SERIALAUTH
 		});
@@ -18,6 +18,10 @@ app.use(function( req, res, next ){
 	next( );
 });
 app.use(router);
+
+/*io.users.all(function( err, res ){
+	console.log( arguments );
+})*/
 
 
 http.createServer( app )
