@@ -11,6 +11,7 @@
   "dependencies": {
     "request": "2.30.0",
     "serialport": "1.2.5",
-    "dotenv": "0.2.3"
+    "dotenv": "0.2.3",
+    "connect": "~2.12.0"
   }
 }

@@ -1,22 +1,27 @@
 require('dotenv').load();
 
-var request = require('request'),
+var connect = require('connect'),
+	app = connect( ),
+	http = require('http'),
 	api = process.env.API || 'http://localhost:3000/',
+	router = require('./libs/router')( require('./libs/routes') ),
 	Serial = require('./libs/serial'),
-	serial = new Serial()
+	port = process.env.PORT || 3000,
+	io, // take sdk and make it use request.
+	serial = new Serial( process.env.SERIALPORT, {
+			auth : process.env.SERIALAUTH
+		});
 
-function syncCheckin ( data ) {
-	var options = { data : data };
-	options.url = api + 'api/v0/checkins.json';
-	request( options, function( err, res, body ) {
-		if ( err ) return console.log( err );
-		console.log( body );
-	})
-}
-
-
-connectSerial('/dev/ttyUSB0', function ( ) {
-	console.log('Serial Port Connected');
+app.use(function( req, res, next ){
+	req.serial = serial;
+	req.io = io;
+	next( );
 });
+app.use(router);
+
+
+http.createServer( app )
+	.listen( port );
+console.log("server listening on " + port );
 
 

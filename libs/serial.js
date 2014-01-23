@@ -5,20 +5,19 @@ var serialport = require('serialport'),
 
 
 function Serial ( port, options ) {
+	var _this = this;
 	this.state = 0;
 	this.authAttempts = 0;
 	this.maxAuthAttempts = options.maxAuthAttempts || 3;
 	this.auth = options.auth;
+	// options.parser = serialport.parsers.readline("\n")
 	// create a new serial port connection.
 	this.port = new SerialPort( port, options );
 	function open ( ) {
-		this.listenToPort( );
-		this.state = 1;
-	}.bind( this );
-	this.port.on('open', function( ) {
-		listenToPort( );
-		if( ready ) ready( );
-	});
+		_this.listenToPort( );
+		_this.state = 1;
+	};
+	this.port.on('open', open);
 };
 
 util.inherits(Serial, EventEmitter);
@@ -52,9 +51,11 @@ Serial.prototype.authenticate = function ( ) {
 Serial.prototype.getUsers = function ( ) {
 	// fetch data
 	// somthing like this 
-	this.port.write('l\r');
+	this.port.write( 'l\r' );
 };
 
 Serial.prototype.editUser = function ( userId, key ) {
-	this.port.write('m ' + userId + ' ' + key + '\r' );
+	this.port.write( 'm ' + userId + ' ' + key + '\r' );
 };
+
+module.exports = Serial;
