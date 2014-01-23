@@ -1,0 +1,16 @@
+{
+  "name": "brokton-messenger",
+  "version": "0.0.0",
+  "description": "a simple logging app that syncs up user data with out api",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "jacob lowe",
+  "license": "MIT",
+  "dependencies": {
+    "request": "2.30.0",
+    "serialport": "1.2.5",
+    "dotenv": "0.2.3"
+  }
+}
