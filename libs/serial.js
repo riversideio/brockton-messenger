@@ -48,14 +48,46 @@ Serial.prototype.authenticate = function ( ) {
 	this.emit('auth:fail');
 };
 
-Serial.prototype.getUsers = function ( ) {
+Serial.prototype.getUsers = function ( callback ) {
 	// fetch data
 	// somthing like this 
 	this.port.write( 'l\r' );
+	this.once("user:list", function ( res ) {
+		// parse fail or something could be error.
+		callback( null, res );
+	})
 };
 
-Serial.prototype.updateUser = function ( userId, key ) {
+Serial.prototype.getUser = function ( id, callback ) {
+	function getUserById ( user ) {
+		return ( user.id === id );
+	}
+	this.getUsers(function( err, res ) {
+		var user = users.filter( getUserById )[0];
+		if ( user ) return callback( null, res );
+		callback( new Error("User Not Found") );
+	})
+};
+
+Serial.prototype.validateUpdate = function ( user, callback ) {
+	if( typeof user === 'object' ) {
+		this.getUser( user.id, function ( err, res ) {
+			if ( user.key === res.key ) return callback( true );
+			callback( false );
+		})
+	}
+};
+
+Serial.prototype.updateUser = function ( userId, key, callback ) {
 	this.port.write( 'm ' + userId + ' ' + key + '\r' );
+	this.validateUpdate( {
+		id : userId,
+		key : key
+	}, function ( updated ) {
+		if ( updated ) return callback( null );
+		// need to pass back better errors
+		callback( new Error("User Not Updated") );
+	})
 };
 
 module.exports = Serial;

@@ -1,9 +1,10 @@
 var levelup = require('levelup');
 
-function Home ( dir, serial ) {
+function Home ( dir, serial, io ) {
 	// local version of database
-	this.db = levelup( dir );
+	this.db = dir ? levelup( dir ) : {};
 	this.serial = serial;
+	this.io = io;
 }
 
 // this call is only for users already on board
