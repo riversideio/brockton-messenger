@@ -10,7 +10,8 @@ var connect = require('connect'),
 	io = require('./libs/sdk')(process.env.API),
 	serial = new Serial( process.env.SERIALPORT, {
 			auth : process.env.SERIALAUTH
-		});
+		}),
+	home = require('./libs/home')( process.env.DBDIR, serial );
 
 app.use(function( req, res, next ){
 	req.serial = serial;

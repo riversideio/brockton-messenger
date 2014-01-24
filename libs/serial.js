@@ -54,7 +54,7 @@ Serial.prototype.getUsers = function ( ) {
 	this.port.write( 'l\r' );
 };
 
-Serial.prototype.editUser = function ( userId, key ) {
+Serial.prototype.updateUser = function ( userId, key ) {
 	this.port.write( 'm ' + userId + ' ' + key + '\r' );
 };
 

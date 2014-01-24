@@ -8,6 +8,9 @@ module.exports = {
 		})
 	},
 	"GET /users.json" : function ( req, res ) {
-		res.end( JSON.stringify({}) );
+		req.io.users.all( function( err, users ){
+			if( err ) return res.end( err.message );
+			res.end( JSON.stringify( users ) );
+		})
 	}
 };
