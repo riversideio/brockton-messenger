@@ -5,12 +5,13 @@ var serialport = require('serialport'),
 
 
 function Serial ( port, options ) {
+	options = options || { };
 	var _this = this;
 	this.state = 0;
 	this.authAttempts = 0;
 	this.maxAuthAttempts = options.maxAuthAttempts || 3;
 	this.auth = options.auth;
-	// options.parser = serialport.parsers.readline("\n")
+	options.parser = serialport.parsers.readline("\n")
 	// create a new serial port connection.
 	this.port = new SerialPort( port, options );
 	function open ( ) {
@@ -22,48 +23,105 @@ function Serial ( port, options ) {
 
 util.inherits(Serial, EventEmitter);
 
+Serial.prototype.parseUser = function ( user ) {
+	if ( typeof user === 'string' ) {
+		user = user.replace('\r', '').split('\t');
+		if ( user ) {
+			return {
+				id : user[0],
+				permission : user[1],
+				key : user[2]
+			}
+		}
+	}
+	return
+};
+
 Serial.prototype.listenToPort = function ( ) {
+	var _this = this;
+		users = {};
+		getUserData;
+
 	this.port.on('data', function( data ) {
-    	// need to see what this data looks like
-    	// from system
-    	// should probably try to infer functions
-    	// based of returns
+		console.log( data );
+		// login successfull
+		if ( /Priveleged mode enabled/.test(data) ) {
+			//port.write('a\r');
+			_this.emit('auth', true);
+
+		}
+		// logout or unsuccessful auth
+		if ( /Priveleged mode disabled/.test( data ) ) {
+			_this.emit('auth', false);
+		}
+		// start listing users
+		if ( /User dump started/.test(data)) {
+			getUserData = true;	
+		}
+
+		// catch user if list started
+		if ( /^[0-9]+\s/.test(data) && getUserData ) {
+			data = data.split('\t');
+			users.push(data)
+		}
+		
+		// end list on list user
+		if ( /^199\s/.test(data) ) {
+			users.push( _this.parseUser( data ) );
+			_this.emit('user:list', users);
+			getUserData = false;
+			users = [];
+		}
+
+		var checkinPattern = /User (.*) presented tag/;
+		var authenticatedPattern = /User (.*) authenticated/;
+		if ( checkinPattern.test(data) ){
+			var match = data.match( checkinPattern ) || [];
+			userPresented = match[ 1 ];
+			console.log( 'presented tag', data.match(checkinPattern))	
+		}
+
+		if ( authenticatedPattern.test( data ) && userPresented ) {
+			var match = data.match( authenticatedPattern );
+			// user id, user key, message;
+			_this.emit('user:granted', { id : match[1], userPresented } );
+			console.log( match[1], user, "has access" );
+			userPresented = false;
+		}
+
+		if ( /denied access/.test( data ) && userPresented ) {
+			var user = userPresented;
+			_this.emit('user:denied', user );
+			console.log( user, "has no access" );
+			userPresented = false;
+		}
+
   	});
 };
 
-Serial.prototype.checkin__ = function ( data ) {
-	this.emit('user:checkin', data);
-};
-
-Serial.prototype.users__ = function ( data ) {
-	this.emit('user:list', data);
-};
-
-Serial.prototype.authenticate = function ( ) {
+Serial.prototype.authenticate = function ( callback ) {
 	// writes auth to login
-	this.authAttempts += 1;
-	if ( this.authAttempts < this.maxAuthAttempts ) {
-		return this.port.write( 'e ' + this.auth + '\r');
+	function handle ( isGood ) {
+		callback ( isGood );
 	}
-	this.emit('auth:fail');
+	this.port.write( 'e ' + this.auth + '\r');
+	this.once( 'auth', handle )
 };
 
 Serial.prototype.getUsers = function ( callback ) {
 	// fetch data
 	// somthing like this 
-	this.port.write( 'l\r' );
-	this.once("user:list", function ( res ) {
+	this.port.write( 'a\r' );
+	this.once("user:list", function ( users ) {
 		// parse fail or something could be error.
-		callback( null, res );
+		callback( null, users );
 	})
 };
 
 Serial.prototype.getUser = function ( id, callback ) {
-	function getUserById ( user ) {
-		return ( user.id === id );
-	}
-	this.getUsers(function( err, res ) {
-		var user = users.filter( getUserById )[0];
+	this.getUsers(function( err, users ) {
+		if ( err ) return callback( err );
+		var user = users[id];
 		if ( user ) return callback( null, res );
 		callback( new Error("User Not Found") );
 	})
@@ -78,11 +136,11 @@ Serial.prototype.validateUpdate = function ( user, callback ) {
 	}
 };
 
-Serial.prototype.updateUser = function ( userId, key, callback ) {
-	this.port.write( 'm ' + userId + ' ' + key + '\r' );
+Serial.prototype.updateUser = function ( user, callback ) {
+	this.port.write( 'm ' + user.id + ' ' + user.permission + ' ' + user.key + '\r' );
 	this.validateUpdate( {
-		id : userId,
-		key : key
+		id : user.id,
+		key : user.key
 	}, function ( updated ) {
 		if ( updated ) return callback( null );
 		// need to pass back better errors
