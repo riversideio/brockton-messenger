@@ -17,6 +17,12 @@ function Serial ( port, options ) {
 	function open ( ) {
 		_this.listenToPort( );
 		_this.state = 1;
+		_this.authenticate( function ( isGood) {
+			if ( isGood ) {
+				_this.state = 2;
+			}
+		})
+
 	};
 	this.port.on('open', open);
 };
@@ -38,12 +44,15 @@ Serial.prototype.parseUser = function ( user ) {
 };
 
 Serial.prototype.listenToPort = function ( ) {
-	var _this = this;
-		users = {};
-		getUserData;
+	var _this = this,
+		users = {},
+		getUserData,
+		userPresented,
+		checkinPattern = /User (.*) presented tag/,
+		authenticatedPattern = /User (.*) authenticated/;
 
 	this.port.on('data', function( data ) {
-		console.log( data );
+		var _user;
 		// login successfull
 		if ( /Priveleged mode enabled/.test(data) ) {
 			//port.write('a\r');
@@ -61,31 +70,28 @@ Serial.prototype.listenToPort = function ( ) {
 
 		// catch user if list started
 		if ( /^[0-9]+\s/.test(data) && getUserData ) {
-			data = data.split('\t');
-			users.push(data)
+			_user =  _this.parseUser( data );
+			users[_user.id] = _user;
 		}
 		
 		// end list on list user
 		if ( /^199\s/.test(data) ) {
-			users.push( _this.parseUser( data ) );
+			_user =  _this.parseUser( data );
+			users[_user.id] = _user;
 			_this.emit('user:list', users);
 			getUserData = false;
 			users = [];
 		}
 
-		var checkinPattern = /User (.*) presented tag/;
-		var authenticatedPattern = /User (.*) authenticated/;
 		if ( checkinPattern.test(data) ){
 			var match = data.match( checkinPattern ) || [];
 			userPresented = match[ 1 ];
-			console.log( 'presented tag', data.match(checkinPattern))	
 		}
 
 		if ( authenticatedPattern.test( data ) && userPresented ) {
 			var match = data.match( authenticatedPattern );
 			// user id, user key, message;
-			_this.emit('user:granted', { id : match[1], userPresented } );
-			console.log( match[1], user, "has access" );
+			_this.emit('user:granted', { id : match[1], key : userPresented } );
 			userPresented = false;
 		}
 
@@ -122,7 +128,7 @@ Serial.prototype.getUser = function ( id, callback ) {
 	this.getUsers(function( err, users ) {
 		if ( err ) return callback( err );
 		var user = users[id];
-		if ( user ) return callback( null, res );
+		if ( user ) return callback( null, user );
 		callback( new Error("User Not Found") );
 	})
 };
