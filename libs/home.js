@@ -2,7 +2,8 @@ var levelup = require('levelup');
 
 function Home ( dir, serial, io ) {
 	// local version of database
-	this.db = dir ? levelup( dir ) : {};
+	var db = dir ? levelup( dir ) : {};
+	this.db = db;
 	this.serial = serial;
 	this.io = io;
 }
@@ -26,52 +27,57 @@ Home.prototype.updateUser = function ( id, data, callback, skipBoard ) {
 		user,
 		keys;
 
-	function mergeAndPut ( user ) {
-		var result = Object.create( user, data );
-		this.db.put( id, result, handlePut );
+	function mergeAndPut ( _user ) {
+		var opts = _user;
+		for( var key in data ) {
+			opts[key] = data[key];
+		}
+		_this.db.put( id, JSON.stringify(opts), handlePut );
 	}
 
 	function handleGet( err, res ) {
-		if ( err ) return callback( err );
+		var payload = {};
 		// if key is here
-		if ( data.key && !skipBoard ) {
-			_this.serial.updateUser( id, data.key );
-			// this need to be created vv
-			return _this.serial.validateUpdate( function ( good ) {
-				if ( !good ) {
-					return callback ( new Error("Failed to update Board") );
-				}
+		// there is something going on with this
+		// install and not showing errors
+		//console.log( arguments );
+		if ( err ) return mergeAndPut( payload );
+		try {
+			res = JSON.parse( res );
+		} catch ( e ) {
+			res = null;
+		}
+		if ( 
+			( data.key || data.permission ) &&
+		 	!skipBoard && 
+		 	res 
+		) {
+			payload.key = data.key || res.key;
+			payload.permission = data.permission || res.permission;
+			payload.id = id;
+			return _this.serial.updateUser( payload, function ( err ) {
+				if ( err ) return callback ( err );
 				mergeAndPut( res );
 			});
 		}
-		mergeAndPut( res );
+		// replace with blank object if unable to parse
+		mergeAndPut( res || {} );
 	}
 
 	function handlePut( err ) {
 		if ( err ) return callback( err );
-		callback( null, user );
+		_this.getUser( id, callback );
 	}
-
 	this.db.get( id, handleGet );
 };
 
 // convert to have error responses
 Home.prototype.getBoardUsers = function ( callback ) {
-	this.serial.getUsers();
-	this.serial.once('user:list', function ( data ){
-		callback( null, data );
-	});
+	this.serial.getUsers( callback );
 };
 // convert to have error responses
 Home.prototype.findBoardUser = function ( id, callback ) {
-	function getUserById ( user ) {
-		return ( user.id === id );
-	}
-
-	this.getSerialUsers(function( users ){
-		var user = users.filter( getUserById )[0];
-		callback( null, user );
-	});
+	this.serial.getUser( id, callback );
 };
 
 // syncs board and db
@@ -88,12 +94,43 @@ Home.prototype.syncUsers = function ( ) {
 
 	function handleBoardUsers ( err, res ) {
 		// might need to convert users data structure
-		var keys = res.keys();
+		var keys = Object.keys(res);
 		users = res;
 		keys.forEach( eachUser );
 	}	
 
 	this.getBoardUsers( handleBoardUsers );
-}	
+}
+
+Home.prototype.getUsers = function ( callback ) {
+	var rs = this.db.createReadStream( );
+	var results = [];
+	rs.on('data', function( data ){
+		var values;
+		try {
+			values = JSON.parse(data.value);
+		} catch ( e ) { }
+		if ( values ) {
+			values.id = data.key;
+			results.push( values );
+		}
+	}).on('end', function ( ) {
+		callback( null, results );
+	})
+};
+
+Home.prototype.getUser = function ( id, callback ) {
+	var returned;
+	this.db.get( id, function ( err, res ) {
+		if ( err ) return callback( err );
+		try {
+			res = JSON.parse( res );
+		} catch ( e ) {
+			returned = true;
+			callback ( e );
+		}
+		if ( !returned ) callback( null, res );
+	})
+};	
 
 module.exports = Home;

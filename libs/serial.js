@@ -15,6 +15,7 @@ function Serial ( port, options ) {
 	// create a new serial port connection.
 	this.port = new SerialPort( port, options );
 	function open ( ) {
+		console.log("serial port open")
 		_this.listenToPort( );
 		_this.state = 1;
 		_this.authenticate( function ( isGood) {
@@ -54,6 +55,10 @@ Serial.prototype.listenToPort = function ( ) {
 	this.port.on('data', function( data ) {
 		var _user;
 		// login successfull
+		if ( /Access Control System rebooted/.test(data) ){
+			_this.authenticate();
+		}
+
 		if ( /Priveleged mode enabled/.test(data) ) {
 			//port.write('a\r');
 			_this.emit('auth', true);
@@ -108,7 +113,7 @@ Serial.prototype.listenToPort = function ( ) {
 Serial.prototype.authenticate = function ( callback ) {
 	// writes auth to login
 	function handle ( isGood ) {
-		callback ( isGood );
+		if ( callback ) callback ( isGood );
 	}
 	this.port.write( 'e ' + this.auth + '\r');
 	this.once( 'auth', handle )
@@ -127,27 +132,41 @@ Serial.prototype.getUsers = function ( callback ) {
 Serial.prototype.getUser = function ( id, callback ) {
 	this.getUsers(function( err, users ) {
 		if ( err ) return callback( err );
-		var user = users[id];
+		var user = users[ id ];
 		if ( user ) return callback( null, user );
 		callback( new Error("User Not Found") );
 	})
 };
 
 Serial.prototype.validateUpdate = function ( user, callback ) {
+	var key,
+		permission;
 	if( typeof user === 'object' ) {
+		key = user.key;
+		permission = user.permission;
 		this.getUser( user.id, function ( err, res ) {
-			if ( user.key === res.key ) return callback( true );
-			callback( false );
+			if ( err ) return callback( null, err );
+			if ( key ) {
+				if ( key !== res.key ) return callback( false );
+			}
+			if ( permission ) {
+				if ( permission !== res.permission ) return callback( false );
+			}
+			callback( true );
 		})
 	}
 };
 
 Serial.prototype.updateUser = function ( user, callback ) {
-	this.port.write( 'm ' + user.id + ' ' + user.permission + ' ' + user.key + '\r' );
-	this.validateUpdate( {
-		id : user.id,
-		key : user.key
-	}, function ( updated ) {
+	this.port.write( 'm ' + 
+		user.id + 
+		' ' +
+		( user.permission || '255' ) + 
+		' ' + 
+		// apparently this is the default
+		( user.key || '4294967295' ) + 
+		'\r' );
+	this.validateUpdate( user, function ( updated ) {
 		if ( updated ) return callback( null );
 		// need to pass back better errors
 		callback( new Error("User Not Updated") );

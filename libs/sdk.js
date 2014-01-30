@@ -35,8 +35,8 @@ function ioSdk( api ) {
         // replace with request
         var opts = {
             url : api + endpoint,
-            body : qs.stringify(data),
-            method : options.method
+            form : data,
+            method : options.method || 'post'
         };
         return request( opts, function ( err, res, body ) {
             if ( err ) return callback( err );

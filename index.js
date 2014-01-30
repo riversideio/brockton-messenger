@@ -7,73 +7,80 @@ var connect = require('connect'),
 		( require('./libs/routes') ),
 	Serial = require('./libs/serial'),
 	port = process.env.PORT || 3000,
+	createKeys = process.argv[2] === 'create',
 	io = require('./libs/sdk')( process.env.API ),
 	serial = new Serial( process.env.SERIALPORT, 
 		{
 			auth : process.env.SERIALAUTH
 		}
 	),
-	home = require('./libs/home')
+	home =  new ( require('./libs/home'))
 		( process.env.DBDIR, serial, io );
 	app = connect( );
 
-// seperate app out to a sperate file ./libs/server
-// this will allow us to use clusters to make sure the
-// app does not go down.. it should only support one child
-
 app.use(function( req, res, next ){
-	req.serial = serial;
-	req.io = io;
-	next( );
+	req.payload = {};
+	// simple data parser
+	req.on('data', function(chunk){
+		var data = chunk.toString('utf8'),
+			keyVal = data.split('&');
+
+			keyVal.forEach( function( pair ){
+				pair = pair.split('=');
+				req.payload[ pair[0] ] = pair[1];
+			});
+	}).on('end', next )
+	req.home = home;
 });
 app.use(router);
 
 serial.on('user:granted', function ( user ) {
 	console.log( user, 'granted access ');
 	delete user.key;
-	user.ts = +new Date;
+	var opts = {
+		rfid : user.id
+	}
 	// send a checkin
-	io.users.checkin(user, function(){})
+	io.users.checkin( opts, function( err, res ){
+		console.log( res.status );
+	})
 });
 var emptyUsers = {},
 	emptyCount = 0;
+
 serial.on('auth', function( isGood ) {
 	if ( !isGood ) return;	
-	serial.getUsers(function( err, users ){
-		if ( err ) return;
-		for ( var key in users ) {
-			var user = users[ key ];
-			if ( user.permission === '255' ) {
-				emptyCount += 1;
-				emptyUsers[ key ] = user;
-			}
-		} 
-	});
+	home.syncUsers( );
 });
 
 // this is a quick way to associate muliple tags in a row
-// function associateKey ( key, user ) {
-// 	console.log("Associating user id " + user.id + " with " + key );
-// 	console.log(" in 10 sec, end node proccess to stop");
-// 	setTimeout(function(){
-// 		user.permission = '5';
-// 		user.key = key;
-// 		serial.updateUser( user, function( err, res ) {
-// 			if ( err ) return console.log( err );
-// 			console.log( "user updated ", res )
-// 			delete emptyUsers[ user.id ];
-// 		});
-// 	}, 10000 );
-// }
+function associateKey ( key, user ) {
+	console.log("Associating user id " + user.id + " with " + key );
+	console.log(" in 10 sec, end node proccess to stop");
+	setTimeout(function(){
+		user.permission = '5';
+		user.key = key;
+		serial.updateUser( user, function( err, res ) {
+			if ( err ) return console.log( err );
+			delete emptyUsers[ user.id ];
+		});
+	}, 10000 );
+}
 
 
 serial.on('user:denied', function ( token ) {
 	console.log( token, 'denied' );
-	// for ( var key in emptyUsers ) {
-	// 	var user = emptyUsers[ key ];
-	// 	return associateKey( token, user );
-	// }
+	if ( createKeys ) {
+		for ( var key in emptyUsers ) {
+			var user = emptyUsers[ key ];
+			return associateKey( token, user );
+		}
+	}
 });
+
+// home.updateUser( '9', { hello : 'world' }, function( err, res) {
+// 	console.log( arguments )
+// })
 
 /*io.users.all(function( err, res ){
 	console.log( arguments );

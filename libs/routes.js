@@ -8,9 +8,28 @@ module.exports = {
 		})
 	},
 	"GET /users.json" : function ( req, res ) {
-		req.io.users.all( function( err, users ){
+		req.home.getUsers( function( err, users ){
 			if( err ) return res.end( err.message );
 			res.end( JSON.stringify( users ) );
 		})
+	},
+	"GET /users/{id}.json" : function ( req, res ) {
+		var params = req.params;
+		req.home.getUser( params.id, function( err, user ){
+			if( err ) return res.end( err.message );
+			res.end( JSON.stringify(user) );
+		})
+	},
+	"PUT /users/{id}.json" : function ( req, res ) {
+		var params = req.params,
+			payload = req.payload;
+
+		req.home.updateUser( params.id, payload, function( err, user ){
+			if( err ) return res.end( err.message );
+			res.end( JSON.stringify( user ) );
+		})
 	}
+	// have a post that creates a user
+	// behind the scenes it finds a open slot
+	// then apply the user to the open slot
 };
