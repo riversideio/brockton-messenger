@@ -6,6 +6,7 @@ var connect = require('connect'),
 	router = require('./libs/router')
 		( require('./libs/routes') ),
 	Serial = require('./libs/serial'),
+	qs = require('querystring'),
 	port = process.env.PORT || 3000,
 	createKeys = process.argv[2] === 'create',
 	io = require('./libs/sdk')( process.env.API ),
@@ -22,13 +23,7 @@ app.use(function( req, res, next ){
 	req.payload = {};
 	// simple data parser
 	req.on('data', function(chunk){
-		var data = chunk.toString('utf8'),
-			keyVal = data.split('&');
-
-			keyVal.forEach( function( pair ){
-				pair = pair.split('=');
-				req.payload[ pair[0] ] = pair[1];
-			});
+		req.payload= qs.parse(chunk);
 	}).on('end', next )
 	req.home = home;
 });

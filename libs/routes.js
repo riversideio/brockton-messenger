@@ -24,6 +24,8 @@ module.exports = {
 		var params = req.params,
 			payload = req.payload;
 
+		console.log( payload );
+
 		req.home.updateUser( params.id, payload, function( err, user ){
 			if( err ) return res.end( err.message );
 			res.end( JSON.stringify( user ) );
