@@ -24,12 +24,29 @@ module.exports = {
 		var params = req.params,
 			payload = req.payload;
 
-		console.log( payload );
-
 		req.home.updateUser( params.id, payload, function( err, user ){
 			if( err ) return res.end( err.message );
 			res.end( JSON.stringify( user ) );
 		})
+	},
+	"POST /users/{id}.json" : function ( req, res ) {
+		var params = req.params,
+			payload = req.payload,
+			user;
+
+		req.home.getUsers( { empty : true }, function ( err, users ) {
+			res.end(JSON.stringify(users))
+			if ( !user.length ) return res.end("no available slots to write user");
+			user = users[0];
+			// generate key
+			// check unique
+			payload.key = '1234';
+			req.home.updateUser( user.id, payload, function ( err, user ) {
+				if ( err ) return res.end(err.message);
+				res.end( JSON.stringify( user ));
+			});
+		});
+
 	}
 	// have a post that creates a user
 	// behind the scenes it finds a open slot

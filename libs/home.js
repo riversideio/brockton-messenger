@@ -102,9 +102,24 @@ Home.prototype.syncUsers = function ( ) {
 	this.getBoardUsers( handleBoardUsers );
 }
 
-Home.prototype.getUsers = function ( callback ) {
+Home.prototype.getUsers = function ( opts, callback ) {
+	var options = opts;
 	var rs = this.db.createReadStream( );
 	var results = [];
+
+	if ( typeof opts === 'function' ) {
+		callback = opts;
+		options = {};
+	}
+
+	function filterEmpty ( user ) {
+		return user.permission === '255';
+	}
+
+	function sortId ( user, prev ) {
+		return ( +user.id < +prev.id ) ? -1 : 1;
+	}
+
 	rs.on('data', function( data ){
 		var values;
 		try {
@@ -115,6 +130,10 @@ Home.prototype.getUsers = function ( callback ) {
 			results.push( values );
 		}
 	}).on('end', function ( ) {
+		if ( options.empty ) {
+			results = results.filter( filterEmpty );
+		}
+		results = results.sort( sortId );
 		callback( null, results );
 	})
 };
