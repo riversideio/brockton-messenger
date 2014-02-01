@@ -19,7 +19,6 @@ var connect = require('connect'),
 if ( env.NODE_ENV === 'production' ) {
 	app.use(function( req, res, next ) {
 		var auth = req.headers.authorization;
-		console.log( auth )
 		if ( auth && auth === env.SECRETAUTH ) {
 			return next();
 		}
@@ -38,14 +37,15 @@ app
 	.use(router);
 
 serial.on('user:granted', function ( user ) {
-	delete user.key;
 	var opts = {
 		rfid : user.id
 	};
+	console.log( user.id + ' access granted' );
 	// send a checkin
 	io.users.checkin( opts, function( err, res ){
-		console.log( res.status );
-	})
+		if ( err ) return;
+		console.log( 'sync with api ' + res.status );
+	});
 });
 
 serial.on('auth', function( isGood ) {
@@ -53,34 +53,9 @@ serial.on('auth', function( isGood ) {
 	home.syncUsers( );
 });
 
-// this is a quick way to associate muliple tags in a row
-// function associateKey ( key, user ) {
-// 	console.log("Associating user id " + user.id + " with " + key );
-// 	console.log(" in 10 sec, end node proccess to stop");
-// 	setTimeout(function(){
-// 		user.permission = '5';
-// 		user.key = key;
-// 		serial.updateUser( user, function( err, res ) {
-// 			if ( err ) return console.log( err );
-// 			delete emptyUsers[ user.id ];
-// 		});
-// 	}, 10000 );
-// }
-
-
 serial.on('user:denied', function ( token ) {
-	console.log( token, 'denied' );
-	// TODO switch this to use home.getUsers({empty:true});
-	// if ( createKeys ) {
-	// 	for ( var key in emptyUsers ) {
-	// 		var user = emptyUsers[ key ];
-	// 		return associateKey( token, user );
-	// 	}
-	// }
+	console.log( token + ' denied' );
 });
 
-http.createServer( app )
-	.listen( port );
+http.createServer( app ).listen( port );
 console.log("server listening on " + port );
-
-
