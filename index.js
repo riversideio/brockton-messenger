@@ -44,7 +44,7 @@ serial.on('user:granted', function ( user ) {
 	// send a checkin
 	io.users.checkin( opts, function( err, res ){
 		if ( err ) return;
-		console.log( 'sync with api ' + res.status );
+		console.log( 'sync with api ' + res.success );
 	});
 });
 
