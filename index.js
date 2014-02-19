@@ -51,6 +51,17 @@ var emptyUsers = {},
 serial.on('auth', function( isGood ) {
 	if ( !isGood ) return;	
 	home.syncUsers( );
+
+	serial.getUsers(function( err, users ){
+		if ( err ) return;
+		for ( var key in users ) {
+			var user = users[ key ];
+			if ( user.permission === '255' ) {
+				emptyCount += 1;
+				emptyUsers[ key ] = user;
+			}
+		} 
+	});
 });
 
 // this is a quick way to associate muliple tags in a row
@@ -70,6 +81,7 @@ function associateKey ( key, user ) {
 
 serial.on('user:denied', function ( token ) {
 	console.log( token, 'denied' );
+	console.log( emptyUsers );
 	if ( createKeys ) {
 		for ( var key in emptyUsers ) {
 			var user = emptyUsers[ key ];
