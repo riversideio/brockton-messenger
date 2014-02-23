@@ -114,9 +114,24 @@ Home.prototype.syncUsers = function ( done ) {
 	this.getBoardUsers( handleBoardUsers );
 }
 
-Home.prototype.getUsers = function ( callback ) {
+Home.prototype.getUsers = function ( opts, callback ) {
+	var options = opts;
 	var rs = this.db.createReadStream( );
 	var results = [];
+
+	if ( typeof opts === 'function' ) {
+		callback = opts;
+		options = {};
+	}
+
+	function filterEmpty ( user ) {
+		return user.permission === '255';
+	}
+
+	function sortId ( user, prev ) {
+		return ( +user.id < +prev.id ) ? -1 : 1;
+	}
+
 	rs.on('data', function( data ){
 		var values;
 		try {
@@ -127,6 +142,10 @@ Home.prototype.getUsers = function ( callback ) {
 			results.push( values );
 		}
 	}).on('end', function ( ) {
+		if ( options.empty ) {
+			results = results.filter( filterEmpty );
+		}
+		results = results.sort( sortId );
 		callback( null, results );
 	})
 };
@@ -144,5 +163,25 @@ Home.prototype.getUser = function ( id, callback ) {
 		if ( !returned ) callback( null, res );
 	})
 };	
+
+Home.prototype.creatUser = function ( key, callback ) {
+
+	function associateKey ( user ) {
+		user.permission = '5';
+		user.key = key;
+		this.serial.updateUser( user, function( err, res ) {
+			if ( err ) return callback( err );
+			callback( null, res );
+		});
+	}
+
+	this.getUsers({
+		empty : true
+	}, function ( err, users ) {
+		if ( err ) return callback( err );
+		associateKey.call( this, users.pop( ) );
+	}.bind( this ));
+
+};
 
 module.exports = Home;

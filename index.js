@@ -3,96 +3,62 @@ require('dotenv').load();
 var connect = require('connect'),
 	http = require('http'),
 	api = process.env.API || 'http://localhost:3000/',
-	router = require('./libs/router')
-		( require('./libs/routes') ),
 	Serial = require('./libs/serial'),
-	port = process.env.PORT || 3000,
+	env = process.env,
+	port = env.PORT || 3000,
 	createKeys = process.argv[2] === 'create',
-	io = require('./libs/sdk')( process.env.API ),
-	serial = new Serial( process.env.SERIALPORT, 
-		{
-			auth : process.env.SERIALAUTH
+	io = require('./libs/sdk')( env.API ),
+	app = connect( ),
+	emptyUsers = [];
+	router = require('./libs/router')( require('./libs/routes') ),
+	serial = new Serial( env.SERIALPORT, {
+		auth : env.SERIALAUTH
+	}),
+	home =  new ( require('./libs/home') )( env.DBDIR, serial, io );
+
+
+if ( env.NODE_ENV === 'production' ) {
+	app.use(function( req, res, next ) {
+		var auth = req.headers.authorization;
+		if ( auth && auth === env.SECRETAUTH ) {
+			return next();
 		}
-	),
-	home =  new ( require('./libs/home'))
-		( process.env.DBDIR, serial, io );
-	app = connect( );
+		res.statusCode = 401;
+		res.end('Not Authorized');
+	});
+}
 
-app.use(function( req, res, next ){
-	req.payload = {};
-	// simple data parser
-	req.on('data', function(chunk){
-		var data = chunk.toString('utf8'),
-			keyVal = data.split('&');
-
-			keyVal.forEach( function( pair ){
-				pair = pair.split('=');
-				req.payload[ pair[0] ] = pair[1];
-			});
-	}).on('end', next )
-	req.home = home;
-});
-app.use(router);
+app
+	.use(connect.bodyParser())
+	.use(connect.query())
+	.use(function( req, res, next ){
+		req.home = home;
+		next();
+	})
+	.use(router);
 
 serial.on('user:granted', function ( user ) {
-	console.log( user, 'granted access ');
-	delete user.key;
 	var opts = {
 		rfid : user.id
-	}
+	};
+	console.log( user.id + ' access granted' );
 	// send a checkin
 	io.users.checkin( opts, function( err, res ){
-		console.log( res.status );
-	})
-});
-var emptyUsers = {},
-	emptyCount = 0;
-
-serial.on('auth', function( isGood ) {
-	console.log('authed');
-	if ( !isGood ) return;	
-	home.syncUsers( function ( ) {
-		console.log('syncing users')
+		if ( err ) return;
+		console.log( 'sync with api ' + res.success );
 	});
 });
 
-// this is a quick way to associate muliple tags in a row
-function associateKey ( key, user ) {
-	console.log("Associating user id " + user.id + " with " + key );
-	console.log(" in 10 sec, end node proccess to stop");
-	setTimeout(function(){
-		user.permission = '5';
-		user.key = key;
-		serial.updateUser( user, function( err, res ) {
-			if ( err ) return console.log( err );
-			delete emptyUsers[ user.id ];
-		});
-	}, 10000 );
-}
-
+serial.on('auth', function( isGood ) {
+	if ( !isGood ) return;	
+	home.syncUsers( function ( ) {
+		console.log("Users synced");
+	});
+});
 
 serial.on('user:denied', function ( token ) {
 	console.log( token, 'denied' );
-	console.log( emptyUsers );
-	if ( createKeys ) {
-		for ( var key in emptyUsers ) {
-			var user = emptyUsers[ key ];
-			return associateKey( token, user );
-		}
-	}
 });
 
-// home.updateUser( '9', { hello : 'world' }, function( err, res) {
-// 	console.log( arguments )
-// })
-
-/*io.users.all(function( err, res ){
-	console.log( arguments );
-})*/
-
-
-http.createServer( app )
-	.listen( port );
+http.createServer( app ).listen( port );
 console.log("server listening on " + port );
-
-
