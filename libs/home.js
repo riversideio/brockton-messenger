@@ -81,14 +81,25 @@ Home.prototype.findBoardUser = function ( id, callback ) {
 };
 
 // syncs board and db
-Home.prototype.syncUsers = function ( ) {
+Home.prototype.syncUsers = function ( done ) {
 	var _this = this,
+		count = 0,
+		amount = 0,
 		users;
+
+	function next ( ) {
+		count += 1;
+		if ( count === amount ) {
+			done();
+		}
+	}
 
 	function eachUser ( id ) {
 		_this.updateUser( id, 
 			users[id],
-			function ( ){ }, 
+			function ( ){ 
+				next( );
+			}, 
 			true );
 	};
 
@@ -96,6 +107,7 @@ Home.prototype.syncUsers = function ( ) {
 		// might need to convert users data structure
 		var keys = Object.keys(res);
 		users = res;
+		amount = keys.length;
 		keys.forEach( eachUser );
 	}	
 

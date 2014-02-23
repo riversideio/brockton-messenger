@@ -49,18 +49,10 @@ var emptyUsers = {},
 	emptyCount = 0;
 
 serial.on('auth', function( isGood ) {
+	console.log('authed');
 	if ( !isGood ) return;	
-	home.syncUsers( );
-
-	serial.getUsers(function( err, users ){
-		if ( err ) return;
-		for ( var key in users ) {
-			var user = users[ key ];
-			if ( user.permission === '255' ) {
-				emptyCount += 1;
-				emptyUsers[ key ] = user;
-			}
-		} 
+	home.syncUsers( function ( ) {
+		console.log('syncing users')
 	});
 });
 
