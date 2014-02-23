@@ -78,7 +78,7 @@ module.exports = {
 
 		function createUser ( ) {
 			req.home.creatUser( key , function ( err, res ) {
-				if ( err ) return res.end( JSON.stringify( err ) );
+				if ( err ) return res.end( '{"error":"Failed to create user"}' );
 				res.end( JSON.stringify( res ) );
 			})
 		}
@@ -88,16 +88,13 @@ module.exports = {
 			req.home.serial.once( 'user:denied', function ( key ) {
 				if ( !good ) return;
 				returned = true;
-				creatUser( function ( err, user ){
-					if ( err ) res.end( JSON.stringify( err ) );
-					res.end( JSON.stringify( user ) );
-				});
+				createUser( );
 			})
 			return setTimeout( function(){
 				good = false;
 				if ( returned ) return;
 				res.end( '{"error":"Timeout"}' )
-			}, 5000 )
+			}, 10000 )
 		}
 
 		if ( payload.mode === 'open' ) {
