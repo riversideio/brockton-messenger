@@ -192,9 +192,21 @@ Serial.prototype.updateUser = function ( user, callback ) {
 };
 
 Serial.prototype.openDoor = function ( callback ) {
-	this.port.write( 'o 1' );
+	this.port.write( 'o 1', function ( err ) {
+	
+		this.port.close( function ( err ) {
+			if ( err ) return callback ( err );
+			this.port.open( function ( err ) {
+				if ( err ) return callback( err );
+				this.authenticate( function ( isGood ) {
+				});
+				this.listenToPort();
+			}.bind( this ));
+		}.bind( this ) );
+	
+	}.bind( this ));
 	this.once( 'door:unlocked', function ( ) {
-		callback( true );
+		callback( null, true );
 	});
 };
 

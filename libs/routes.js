@@ -101,8 +101,9 @@ module.exports = {
 
 	},
 	"POST /signals/open.json" : function ( req, res ) {
-		req.home.openDoor( function ( open ) {
-			res.end('{ "success" : ' + open + ' }');
-		};
+		req.home.openDoor( function ( err, open ) {
+			if ( err ) return res.end( JSON.stringify( err ) );
+			res.end( '{"success" : ' + res + '}' );
+		});
 	}
 };
