@@ -71,7 +71,7 @@ module.exports = {
 		});
 
 	},
-	"POST /signals.json" : function ( req, res ) {
+	"POST /signals/create.json" : function ( req, res ) {
 		var payload = req.body || {},
 			good = true,
 			returned;
@@ -82,28 +82,27 @@ module.exports = {
 				res.end( JSON.stringify( user ) );
 			})
 		}
+		
+		req.home.serial.once( 'user:denied', function ( key ) {
+			if ( !good ) return;
+			returned = true;
+			process.nextTick(function(){
+				createUser( key );
+			});
+		});
 
-
-		if ( payload.mode === 'create' ) {
-			req.home.serial.once( 'user:denied', function ( key ) {
-				if ( !good ) return;
-				returned = true;
-				process.nextTick(function(){
-					createUser( key );
-				});
-			})
-			return setTimeout( function(){
-				good = false;
-				if ( returned ) return;
-				res.end( '{"error":"Timeout"}' )
-			}, 10000 )
-		}
-
-		if ( payload.mode === 'open' ) {
-			// unlock door
-			res.end( '{"error":"Not yet implemented"}' );
-		}
+		return setTimeout( function(){
+			good = false;
+			if ( returned ) return;
+			res.end( '{"error":"Timeout"}' )
+		}, 10000 )
 
 		res.end( '{"error":"No action specified"}' );
+
+	},
+	"POST /signals/open.json" : function ( req, res ) {
+		req.home.openDoor( function ( open ) {
+			res.end('{ "success" : ' + open + ' }');
+		};
 	}
 };

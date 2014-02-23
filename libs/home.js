@@ -183,4 +183,8 @@ Home.prototype.createUser = function ( key, callback ) {
 
 };
 
+Home.prototype.openDoor = function ( callback ) {
+	this.serial.openDoor( callback );
+};
+
 module.exports = Home;

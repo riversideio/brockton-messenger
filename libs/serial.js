@@ -113,6 +113,14 @@ Serial.prototype.listenToPort = function ( ) {
 			userPresented = false;
 		}
 
+		if ( /Door 1 unlocked/.test( data ) ) {
+			_this.emit('door:unlocked');
+		}
+
+		if ( /Door 1 locked/.test( data ) ) {
+			_this.emit('door:locked');
+		}
+
   	});
 };
 
@@ -180,6 +188,13 @@ Serial.prototype.updateUser = function ( user, callback ) {
 			}
 		}
 		callback( new Error("User Not Updated") );
+	});
+};
+
+Serial.prototype.openDoor = function ( callback ) {
+	this.port.write( 'o 1' );
+	this.once( 'door:unlocked', function ( ) {
+		callback( true );
 	});
 };
 
