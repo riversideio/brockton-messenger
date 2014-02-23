@@ -50,7 +50,8 @@ Serial.prototype.listenToPort = function ( ) {
 		getUserData,
 		userPresented,
 		checkinPattern = /User (.*) presented tag/,
-		authenticatedPattern = /User (.*) authenticated/;
+		authenticatedPattern = /User (.*) authenticated/,
+		modifiedSuccessPattern = /User (.*) successfully modified/;
 
 	this.port.on('data', function( data ) {
 		var _user;
@@ -98,6 +99,11 @@ Serial.prototype.listenToPort = function ( ) {
 			// user id, user key, message;
 			_this.emit('user:granted', { id : match[1], key : userPresented } );
 			userPresented = false;
+		}
+
+		if ( modifiedSuccessPattern.test( data ) ) {
+			var match = data.match( modifiedSuccessPattern );
+			_this.emit('user:modified', { id : match[1] } );
 		}
 
 		if ( /denied access/.test( data ) && userPresented ) {
@@ -166,11 +172,15 @@ Serial.prototype.updateUser = function ( user, callback ) {
 		// apparently this is the default
 		( user.key || '4294967295' ) + 
 		'\r' );
-	this.validateUpdate( user, function ( updated ) {
-		if ( updated ) return callback( null );
-		// need to pass back better errors
+
+	this.on('user:modified', function ( updated ) {
+		if ( updated ) {
+			if ( updated.id === user.id ) {
+				return callback( null, updated );
+			}
+		}
 		callback( new Error("User Not Updated") );
-	})
+	});
 };
 
 module.exports = Serial;

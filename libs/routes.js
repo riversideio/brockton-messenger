@@ -77,8 +77,7 @@ module.exports = {
 			returned;
 
 		function createUser ( key ) {
-			req.home.creatUser( key , function ( err, user ) {
-				console.log( err, user );
+			req.home.createUser( key , function ( err, user ) {
 				if ( err ) return res.end( '{"error":"Failed to create user"}' );
 				res.end( JSON.stringify( user ) );
 			})
@@ -89,7 +88,9 @@ module.exports = {
 			req.home.serial.once( 'user:denied', function ( key ) {
 				if ( !good ) return;
 				returned = true;
-				createUser( key );
+				process.nextTick(function(){
+					createUser( key );
+				});
 			})
 			return setTimeout( function(){
 				good = false;

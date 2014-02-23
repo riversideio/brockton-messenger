@@ -40,7 +40,6 @@ Home.prototype.updateUser = function ( id, data, callback, skipBoard ) {
 		// if key is here
 		// there is something going on with this
 		// install and not showing errors
-		//console.log( arguments );
 		if ( err ) return mergeAndPut( payload );
 		try {
 			res = JSON.parse( res );
@@ -164,7 +163,7 @@ Home.prototype.getUser = function ( id, callback ) {
 	})
 };	
 
-Home.prototype.creatUser = function ( key, callback ) {
+Home.prototype.createUser = function ( key, callback ) {
 
 	function associateKey ( user ) {
 		user.permission = '5';
